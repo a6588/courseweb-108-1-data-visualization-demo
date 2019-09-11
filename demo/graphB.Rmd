@@ -1,0 +1,96 @@
+### 圖B
+
+```{r}
+# 資料引入
+load("graphB.Rda")
+
+# 資料處理
+data_02$df_wageByIndustries_annual -> df_wageByIndustries_annual 
+df_wageByIndustries_annual %>%
+  names() -> .oldNames
+.oldNames %>%
+  str_extract("[\u4e00-\u9fff]+") -> .newNames
+
+names(df_wageByIndustries_annual) <- .newNames
+
+df_wageByIndustries_annual %>%
+  rename(
+    "年"="年月別"
+  ) -> df_wageByIndustries_annual
+
+df_wageByIndustries_annual %>%
+  select(
+    年,製造業,服務業
+  ) %>%
+  gather(
+    製造業,服務業,
+    key="行業別",
+    value="薪資"
+  ) %>%
+  mutate(
+    類別="名目薪資"
+  )-> df_graph_wageByIndustries_annual
+
+df_wageByIndustries_annual %>%
+  left_join(
+    data_02$cpiAnnualBase95 %>%
+      rename("年"="year"),
+    by="年"
+  ) -> df_wageByIndustries_annual2
+
+df_wageByIndustries_annual2 %>%
+  select(
+    年,製造業,服務業,指數
+  ) %>%
+  mutate(
+    製造業=製造業/指數*100,
+    服務業=服務業/指數*100,
+  ) %>%
+  select(
+    -"指數"
+  ) -> df_realWageByIndustry
+df_realWageByIndustry %>%
+  select(
+    年,製造業,服務業
+  ) %>%
+  gather(
+    製造業,服務業,
+    key="行業別",
+    value="薪資"
+  ) %>%
+  mutate(
+    類別="實質薪資"
+  )-> df_graph_realWageByIndustries_annual 
+
+# 完成graphData物件
+graphData <- list()
+bind_rows(
+  df_graph_realWageByIndustries_annual,
+  df_graph_wageByIndustries_annual
+) -> graphData$df_graph_wageByIndustries_bothRealNominal
+
+# 進行繪圖
+graphData$df_graph_wageByIndustries_bothRealNominal %>%
+  filter(
+    年 %>% between(1995,2018)
+  ) %>%
+  mutate(
+    groupID=str_c(行業別,類別,sep="-")
+  ) %>% 
+  ggplot()+
+  geom_line(
+    aes(
+      x=年,y=薪資,
+      group=groupID,
+      color=行業別,
+      linetype=類別
+    ),
+    size=1
+  ) 
+```
+
+***
+
+1995年台灣服務業的平均月薪為29,580元，製造業為25,988元；到了2018年服務業上升到42,800元（上升了百分之44.69），製造業也到了38,214元（上升了百分之47.04）。然而，若以消費物價者指數所追踪之一籃子商來說記算實質薪資，以民國1995年為基期，2018年服務業平均薪資等值於基期新台幣33,437.5元（上升了百分之13.04），製造業平均薪資等值於基期新台幣29,854.69元（上升了百分之14.88）。
+
+
